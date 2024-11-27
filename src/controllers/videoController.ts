@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { videoFeedQuerySchema } from "../schemas/video";
 import prisma from "../db/prisma";
 import { ZodError } from "zod";
+import { upload } from "../services/S3";
+import { CustomRequest } from "../middleware/authenticate";
 
 export const getVideoFeed = async (req: Request, res: Response) => {
     try {
@@ -63,3 +65,48 @@ export const getVideoFeed = async (req: Request, res: Response) => {
         }
     }
 }
+
+
+export const uploadVideo = async (req: CustomRequest, res: Response) => {
+    upload(req, res, async (err) => {
+        if (err) {
+            console.error('Error uploading file:', err);
+            return res.status(400).json({ message: err.message });
+        }
+
+        try {
+            const { title, description, category } = req.body;
+            const file = (req as any).file;
+
+            // Validation
+            if (!file || !title || !description || !category) {
+                return res.status(400).json({ message: 'All fields are required' });
+            }
+
+            // Save video data in the database
+            const video = await prisma.video.create({
+                data: {
+                    creatorId: req.user!.id,
+                    title,
+                    description,
+                    category,
+                    file_path: file.location, // S3 file URL
+                    processing_status: 'PROCESSING',
+                    qualities: ['240p', '480p', '720p'],
+
+                },
+            });
+
+            // Return the response
+            res.status(201).json({
+                id: video.id,
+                title: video.title,
+                processing_status: video.processing_status,
+                qualities: video.qualities,
+            });
+        } catch (error) {
+            console.error('Error saving video - ', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    });
+};
