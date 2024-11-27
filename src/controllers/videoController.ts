@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { upload } from "../services/S3";
 import { CustomRequest } from "../middleware/authenticate";
 
+// Get videos for the feed
 export const getVideoFeed = async (req: Request, res: Response) => {
     try {
         // Validate query parameters
@@ -66,7 +67,7 @@ export const getVideoFeed = async (req: Request, res: Response) => {
     }
 }
 
-
+// Uplaod a video
 export const uploadVideo = async (req: CustomRequest, res: Response) => {
     upload(req, res, async (err) => {
         if (err) {
@@ -91,7 +92,7 @@ export const uploadVideo = async (req: CustomRequest, res: Response) => {
                     description,
                     category,
                     file_path: file.location, // S3 file URL
-                    processing_status: 'PROCESSING',
+                    status: 'PROCESSING',
                     qualities: ['240p', '480p', '720p'],
 
                 },
@@ -101,7 +102,7 @@ export const uploadVideo = async (req: CustomRequest, res: Response) => {
             res.status(201).json({
                 id: video.id,
                 title: video.title,
-                processing_status: video.processing_status,
+                processing_status: video.status,
                 qualities: video.qualities,
             });
         } catch (error) {
@@ -110,3 +111,63 @@ export const uploadVideo = async (req: CustomRequest, res: Response) => {
         }
     });
 };
+
+// Get video details for a partivular video 
+export const getVideoDetails = async (req: Request, res: Response) => {
+    try {
+        const { video_id } = req.params;
+
+        // Fetch the video details from the database using Prisma
+        const video = await prisma.video.findUnique({
+            where: { id: video_id },
+            include: {
+                creator: true,
+            },
+        });
+
+        if (!video) {
+            res.status(404).json({ message: 'Video not found' });
+            return
+        }
+
+        // If video is still processing, return the processing status
+        if (video.status === 'PROCESSING') {
+            res.status(200).json({
+                id: video.id,
+                title: video.title,
+                description: video.description,
+                creator: {
+                    id: video.creator.id,
+                    username: video.creator.username,
+                },
+                status: video.status,
+            });
+            return;
+        }
+
+        // If video has been transcoded, return transcoded URLs and other details
+        if (video.status === 'COMPLETED' && video.videoUrls) {
+            res.status(200).json({
+                id: video.id,
+                title: video.title,
+                description: video.description,
+                creator: {
+                    id: video.creator.id,
+                    username: video.creator.username,
+                },
+                video_urls: video.videoUrls,
+                current_timestamp: video.status,
+                view_count: video.viewCount,
+                status: video.status,
+            });
+            return
+        }
+
+        // In case the video has an unexpected status
+        res.status(400).json({ message: 'Unexpected video status' });
+        return
+    } catch (error) {
+        console.error('Error fetching video details:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
