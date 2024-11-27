@@ -15,7 +15,19 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  videos Video[]
+  channels Channel?
+  videos   Video[]
+}
+
+model Channel {
+  id          String  @id @default(uuid())
+  name        String
+  description String
+  slug        String  @unique
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id])
+  videos      Video[]
+  subscribers Int     @default(0)
 }
 
 model Video {
@@ -27,4 +39,7 @@ model Video {
   creatorId    String
   creator      User     @relation(fields: [creatorId], references: [id])
   category     String?
+
+  channelId String?
+  channel   Channel? @relation(fields: [channelId], references: [id])
 }

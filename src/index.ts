@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // App Router
-app.use('/', appRouter)
+app.use('/api/', appRouter)
 
 // Global error handler
 app.use(errorHandler);
