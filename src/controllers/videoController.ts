@@ -4,6 +4,7 @@ import prisma from "../db/prisma";
 import { ZodError } from "zod";
 import { upload } from "../services/S3";
 import { CustomRequest } from "../middleware/authenticate";
+import { publishToRedis } from "../services/redis";
 
 // Get videos for the feed
 export const getVideoFeed = async (req: Request, res: Response) => {
@@ -84,17 +85,35 @@ export const uploadVideo = async (req: CustomRequest, res: Response) => {
                 return res.status(400).json({ message: 'All fields are required' });
             }
 
+            const user = await prisma.user.findUnique({
+                where: {
+                    id: req.user!.id
+                },
+                select: {
+                    channels: {
+                        select: {
+                            id: true
+                        }
+                    }
+                }
+            })
+
+            if (!user?.channels || !user?.channels?.id) {
+                res.status(400).json({ message: 'Create a channel first' });
+                return;
+            }
+
             // Save video data in the database
             const video = await prisma.video.create({
                 data: {
                     creatorId: req.user!.id,
+                    channelId: user.channels.id,
                     title,
                     description,
                     category,
-                    file_path: file.location, // S3 file URL
+                    file_path: file.location,
                     status: 'PROCESSING',
                     qualities: ['240p', '480p', '720p'],
-
                 },
             });
 
@@ -115,11 +134,11 @@ export const uploadVideo = async (req: CustomRequest, res: Response) => {
 // Get video details for a partivular video 
 export const getVideoDetails = async (req: Request, res: Response) => {
     try {
-        const { video_id } = req.params;
+        const { videoId } = req.params;
 
         // Fetch the video details from the database using Prisma
         const video = await prisma.video.findUnique({
-            where: { id: video_id },
+            where: { id: videoId },
             include: {
                 creator: true,
             },
@@ -168,6 +187,48 @@ export const getVideoDetails = async (req: Request, res: Response) => {
         return
     } catch (error) {
         console.error('Error fetching video details:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}
+
+// Update TimeStamp of a video
+export const updateTimestamp = async (req: Request, res: Response) => {
+    try {
+        const { videoId } = req.params;
+        const { timestamp } = req.body;
+
+        // Validate the timestamp value
+        if (timestamp < 0) {
+            res.status(400).json({ message: 'Time cannot be negative' });
+            return
+        }
+
+        // Fetch the video details to check its duration
+        const video = await prisma.video.findUnique({
+            where: { id: videoId },
+            select: {
+                duration: true
+            }
+        });
+
+        if (!video) {
+            res.status(404).json({ message: 'Video not found' });
+            return
+        }
+
+        // Validate that the timestamp is not longer than the video duration
+        if (video.duration && timestamp > video.duration) {
+            res.status(400).json({ message: 'Timestamp cannot be longer than the video duration' });
+            return
+        }
+
+        // Publish the updated Time to the pub sub 
+        await publishToRedis(videoId, timestamp)
+
+        res.status(201).json({ message: 'Timestamp updated' });
+        return
+    } catch (error) {
+        console.error('Error updating timestamp:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }

@@ -31,22 +31,25 @@ model Channel {
 }
 
 model Video {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   title        String
   description  String
   file_path    String
-  status       Status   @default(PROCESSING)
-  qualities    String[] // Supported qualities like ["240p", "480p","720p"]
-  thumbnailUrl String   @default("")
-  viewCount    Int      @default(0)
-  videoUrls    Json? // JSON to store video quality URLs (240p, 480p, 720p)
-  createdAt    DateTime @default(now())
-  creatorId    String
-  creator      User     @relation(fields: [creatorId], references: [id])
-  category     String?
+  category     String
+  viewCount    Int     @default(0)
+  thumbnailUrl String?
 
-  channelId String?
-  channel   Channel? @relation(fields: [channelId], references: [id])
+  createdAt DateTime @default(now())
+  creator   User     @relation(fields: [creatorId], references: [id])
+  creatorId String
+
+  status    Status   @default(PROCESSING)
+  qualities String[]
+  videoUrls Json? // JSON to store video quality URLs (240p, 480p, 720p)
+  duration  Int?
+
+  channelId String
+  channel   Channel @relation(fields: [channelId], references: [id])
 }
 
 enum Status {
