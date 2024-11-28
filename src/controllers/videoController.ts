@@ -195,8 +195,12 @@ export const getVideoDetails = async (req: Request, res: Response) => {
 export const updateTimestamp = async (req: Request, res: Response) => {
     try {
         const { videoId } = req.params;
-        const { timestamp } = req.body;
+        const timestamp = Number(req.body.timestamp);
 
+        if (!timestamp) {
+            res.status(400).json({ message: 'Timestamp Required' })
+            return;
+        }
         // Validate the timestamp value
         if (timestamp < 0) {
             res.status(400).json({ message: 'Time cannot be negative' });

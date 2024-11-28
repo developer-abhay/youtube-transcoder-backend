@@ -6,8 +6,9 @@ const publisher = createClient()
 export async function initRedis() {
     try {
         await publisher.connect()
+        console.log('Connected to Redis')
     } catch (error) {
-        console.log('Error Connecting to Redis : ', error)
+        console.log('Error Connecting to Redis')
     }
 }
 

@@ -13,7 +13,7 @@ export const authenticationMiddleware = (req: CustomRequest, res: Response, next
     try {
         let token;
         // Get the token from the 'Authentication' cookie
-        token = req.cookies.Authentication;
+        token = req.cookies['access-token'];
 
         // If cookies doesn't have the token, get it from the 'authorization' headers
         token = token ? token : req.headers.authorization?.split(' ')[1];
