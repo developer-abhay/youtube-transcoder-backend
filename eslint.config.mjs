@@ -14,12 +14,12 @@ export default [
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
   {
-  plugins: {
-  prettier:eslintPluginPrettier,
+    plugins: {
+      prettier: eslintPluginPrettier,
+    },
+    rules: {
+      "prettier/prettier": "error", // Reports Prettier issues as ESLint errors
+    },
   },
-  rules: {
-  "prettier/prettier": "error", // Reports Prettier issues as ESLint errors
-  },
-  },
-  prettierConfig // Enables Prettier rules and disables conflicting ESLint rules
+  prettierConfig, // Enables Prettier rules and disables conflicting ESLint rules
 ];
